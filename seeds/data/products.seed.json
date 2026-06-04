@@ -1,6 +1,7 @@
 [
   {
     "name": "Ivory Thorn Rose",
+    "slug": "ivory-thorn-rose",
     "sku": "ITR-001",
     "category": "Cut Flowers",
     "collection": "Public Catalogue",
@@ -13,6 +14,7 @@
   },
   {
     "name": "Crimson Oath Roses",
+    "slug": "crimson-oath-roses",
     "sku": "COR-002",
     "category": "Cut Flowers",
     "collection": "Public Catalogue",
@@ -25,6 +27,7 @@
   },
   {
     "name": "Black Calla Study",
+    "slug": "black-calla-study",
     "sku": "BCS-003",
     "category": "Cut Flowers",
     "collection": "Public Catalogue",
@@ -37,6 +40,7 @@
   },
   {
     "name": "Moonlit Orchid",
+    "slug": "moonlit-orchid",
     "sku": "MO-004",
     "category": "Plants",
     "collection": "Public Catalogue",
@@ -49,6 +53,7 @@
   },
   {
     "name": "Raven ZZ Plant",
+    "slug": "raven-zz-plant",
     "sku": "RZP-005",
     "category": "Plants",
     "collection": "Public Catalogue",
@@ -61,6 +66,7 @@
   },
   {
     "name": "Dusk Dried Botanicals",
+    "slug": "dusk-dried-botanicals",
     "sku": "DDB-006",
     "category": "Preserved Botanicals",
     "collection": "Public Catalogue",
@@ -73,6 +79,7 @@
   },
   {
     "name": "Pale Remembrance Spray",
+    "slug": "pale-remembrance-spray",
     "sku": "PRS-007",
     "category": "Occasion Flowers",
     "collection": "Public Catalogue",
@@ -85,6 +92,7 @@
   },
   {
     "name": "Thorn Vessel",
+    "slug": "thorn-vessel",
     "sku": "TV-008",
     "category": "Vessels",
     "collection": "Public Catalogue",
@@ -97,6 +105,7 @@
   },
   {
     "name": "Sealed Rose Relic",
+    "slug": "sealed-rose-relic",
     "sku": "SRR-009",
     "category": "Preserved Botanicals",
     "collection": "Restricted Catalogue",
@@ -109,6 +118,7 @@
   },
   {
     "name": "Nocturne Orchid Centrepiece",
+    "slug": "nocturne-orchid-centrepiece",
     "sku": "NOC-010",
     "category": "Plants",
     "collection": "Restricted Catalogue",
@@ -121,6 +131,7 @@
   },
   {
     "name": "Black Ribbon Message Set",
+    "slug": "black-ribbon-message-set",
     "sku": "BRM-011",
     "category": "Gift Add-ons",
     "collection": "Public Catalogue",
@@ -133,6 +144,7 @@
   },
   {
     "name": "Night Garden Candle",
+    "slug": "night-garden-candle",
     "sku": "NGC-012",
     "category": "Gift Add-ons",
     "collection": "Public Catalogue",
