@@ -3,13 +3,14 @@ import { cp, readdir, rm } from "node:fs/promises";
 import { build } from "esbuild";
 
 const external = [
+  "@fastify/cors",
+  "@fastify/multipart",
+  "@fastify/static",
   "bcryptjs",
-  "cors",
   "dotenv",
-  "express",
+  "fastify",
   "jsonwebtoken",
   "mongoose",
-  "multer",
   "nodemailer",
   "stripe",
 ];

@@ -1,16 +1,16 @@
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 
 import { attachCustomerContext } from "../../middleware/require-customer.js";
-import { storefrontAuthRouter } from "./auth.js";
-import { storefrontCustomersRouter } from "./customers.js";
-import { storefrontOrdersRouter } from "./orders.js";
-import { storefrontProductsRouter } from "./products.js";
+import { storefrontAuthRoutes } from "./auth.js";
+import { storefrontCustomersRoutes } from "./customers.js";
+import { storefrontOrdersRoutes } from "./orders.js";
+import { storefrontProductsRoutes } from "./products.js";
 
-export const storefrontRouter = Router();
+export async function storefrontRoutes(app: FastifyInstance) {
+  app.addHook("preHandler", attachCustomerContext);
 
-storefrontRouter.use(attachCustomerContext);
-
-storefrontRouter.use("/auth", storefrontAuthRouter);
-storefrontRouter.use("/customers", storefrontCustomersRouter);
-storefrontRouter.use("/orders", storefrontOrdersRouter);
-storefrontRouter.use("/products", storefrontProductsRouter);
+  await app.register(storefrontAuthRoutes, { prefix: "/auth" });
+  await app.register(storefrontCustomersRoutes, { prefix: "/customers" });
+  await app.register(storefrontOrdersRoutes, { prefix: "/orders" });
+  await app.register(storefrontProductsRoutes, { prefix: "/products" });
+}

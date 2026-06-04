@@ -1,15 +1,12 @@
 import type { RegisterCustomerDto, RegisterCustomerResponse } from "@otbt/types";
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 
 import { HttpError } from "../../middleware/error-handler.js";
 import { registerCustomer } from "../../modules/customers/customer.service.js";
 
-export const storefrontCustomersRouter = Router();
-
-storefrontCustomersRouter.post("/", async (req, res, next) => {
-  try {
-    const { firstName, lastName, email, password } =
-      req.body as Partial<RegisterCustomerDto>;
+export async function storefrontCustomersRoutes(app: FastifyInstance) {
+  app.post<{ Body: Partial<RegisterCustomerDto> }>("/", async (request, reply) => {
+    const { firstName, lastName, email, password } = request.body;
 
     if (!firstName || !lastName || !email || !password) {
       throw new HttpError(
@@ -27,8 +24,7 @@ storefrontCustomersRouter.post("/", async (req, res, next) => {
       }),
     };
 
-    res.status(201).json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+    reply.status(201);
+    return response;
+  });
+}

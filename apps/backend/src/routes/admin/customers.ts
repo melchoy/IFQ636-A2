@@ -4,7 +4,7 @@ import type {
   AdminCustomerUpdateRequest,
   AdminCustomerUpdateResponse,
 } from "@otbt/types";
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 import { Error as MongooseError } from "mongoose";
 
 import { HttpError } from "../../middleware/error-handler.js";
@@ -15,65 +15,60 @@ import {
   updateCustomer,
 } from "../../modules/customers/customer.service.js";
 
-export const adminCustomersRouter = Router();
+type CustomerParams = {
+  customerId: string;
+};
 
-function handleCustomerRouteError(error: unknown, next: (error: unknown) => void) {
+function handleCustomerRouteError(error: unknown): never {
   if (error instanceof MongooseError.ValidationError) {
-    next(new HttpError(400, error.message));
-    return;
+    throw new HttpError(400, error.message);
   }
 
-  next(error);
+  throw error;
 }
 
-function getCustomerIdParam(customerId: string | string[]) {
-  return Array.isArray(customerId) ? customerId[0] : customerId;
-}
-
-adminCustomersRouter.get("/", requireAdmin, async (_req, res, next) => {
-  try {
+export async function adminCustomersRoutes(app: FastifyInstance) {
+  app.get("/", { preHandler: requireAdmin }, async () => {
     const customers = await listCustomers();
     const response: AdminCustomerListResponse = { customers };
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+    return response;
+  });
 
-adminCustomersRouter.get("/:customerId", requireAdmin, async (req, res, next) => {
-  try {
-    const customerId = getCustomerIdParam(req.params.customerId);
-    const customer = await getCustomer(customerId);
+  app.get<{ Params: CustomerParams }>(
+    "/:customerId",
+    { preHandler: requireAdmin },
+    async (request) => {
+      const customer = await getCustomer(request.params.customerId);
 
-    if (!customer) {
-      throw new HttpError(404, "Customer not found");
-    }
+      if (!customer) {
+        throw new HttpError(404, "Customer not found");
+      }
 
-    const response: AdminCustomerDetailResponse = { customer };
+      const response: AdminCustomerDetailResponse = { customer };
+      return response;
+    },
+  );
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+  app.patch<{ Body: AdminCustomerUpdateRequest; Params: CustomerParams }>(
+    "/:customerId",
+    { preHandler: requireAdmin },
+    async (request) => {
+      try {
+        const customer = await updateCustomer(
+          request.params.customerId,
+          request.body,
+        );
 
-adminCustomersRouter.patch("/:customerId", requireAdmin, async (req, res, next) => {
-  try {
-    const customerId = getCustomerIdParam(req.params.customerId);
-    const customer = await updateCustomer(
-      customerId,
-      req.body as AdminCustomerUpdateRequest,
-    );
+        if (!customer) {
+          throw new HttpError(404, "Customer not found");
+        }
 
-    if (!customer) {
-      throw new HttpError(404, "Customer not found");
-    }
-
-    const response: AdminCustomerUpdateResponse = { customer };
-
-    res.json(response);
-  } catch (error) {
-    handleCustomerRouteError(error, next);
-  }
-});
+        const response: AdminCustomerUpdateResponse = { customer };
+        return response;
+      } catch (error) {
+        handleCustomerRouteError(error);
+      }
+    },
+  );
+}

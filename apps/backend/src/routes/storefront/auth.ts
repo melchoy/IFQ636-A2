@@ -3,21 +3,16 @@ import type {
   LoginCustomerDto,
   LoginCustomerResponse,
 } from "@otbt/types";
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 
 import { HttpError } from "../../middleware/error-handler.js";
-import {
-  requireCustomer,
-  type CustomerAuthRequest,
-} from "../../middleware/require-customer.js";
+import { requireCustomer } from "../../middleware/require-customer.js";
 import { findCustomerByCredentials } from "../../modules/customers/customer.service.js";
 import { generateCustomerToken } from "../../modules/customers/customer.tokens.js";
 
-export const storefrontAuthRouter = Router();
-
-storefrontAuthRouter.post("/login", async (req, res, next) => {
-  try {
-    const { email, password } = req.body as Partial<LoginCustomerDto>;
+export async function storefrontAuthRoutes(app: FastifyInstance) {
+  app.post<{ Body: Partial<LoginCustomerDto> }>("/login", async (request) => {
+    const { email, password } = request.body;
 
     if (!email || !password) {
       throw new HttpError(400, "Email and password are required");
@@ -34,30 +29,19 @@ storefrontAuthRouter.post("/login", async (req, res, next) => {
       token: generateCustomerToken({ id: customer.id, email: customer.email }),
     };
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+    return response;
+  });
 
-storefrontAuthRouter.get(
-  "/me",
-  requireCustomer,
-  (req: CustomerAuthRequest, res, next) => {
-    try {
-      if (!req.customer) {
-        throw new HttpError(401, "Not authorized");
-      }
-
-      const response: CurrentCustomerResponse = { customer: req.customer };
-
-      res.json(response);
-    } catch (error) {
-      next(error);
+  app.get("/me", { preHandler: requireCustomer }, async (request) => {
+    if (!request.customer) {
+      throw new HttpError(401, "Not authorized");
     }
-  },
-);
 
-storefrontAuthRouter.post("/logout", requireCustomer, (_req, res) => {
-  res.status(204).send();
-});
+    const response: CurrentCustomerResponse = { customer: request.customer };
+    return response;
+  });
+
+  app.post("/logout", { preHandler: requireCustomer }, async (_request, reply) => {
+    reply.status(204).send();
+  });
+}

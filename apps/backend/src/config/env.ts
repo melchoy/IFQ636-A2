@@ -45,6 +45,7 @@ const numberValue = (key: string, fallback?: number) => {
 };
 
 export const env = {
+  host: process.env.BACKEND_HOST ?? "0.0.0.0",
   port: Number(process.env.BACKEND_PORT ?? process.env.PORT ?? 3000),
   clientOrigins: (process.env.CLIENT_ORIGINS ?? "http://localhost:5173,http://localhost:5174")
     .split(",")

@@ -6,9 +6,8 @@ import type {
   AdminProductUpdateRequest,
   AdminProductUpdateResponse,
 } from "@otbt/types";
-import { Router, type RequestHandler } from "express";
+import type { FastifyInstance } from "fastify";
 import { Error as MongooseError } from "mongoose";
-import multer from "multer";
 
 import { HttpError } from "../../middleware/error-handler.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
@@ -24,154 +23,132 @@ import {
   updateProduct,
 } from "../../modules/products/product.service.js";
 
-export const adminProductsRouter = Router();
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-      return;
-    }
-
-    cb(new HttpError(400, "Only image uploads are allowed"));
-  },
-});
-
-function handleProductRouteError(error: unknown, next: (error: unknown) => void) {
-  if (error instanceof MongooseError.ValidationError) {
-    next(new HttpError(400, error.message));
-    return;
-  }
-
-  next(error);
-}
-
-function getProductIdParam(productId: string | string[]) {
-  return Array.isArray(productId) ? productId[0] : productId;
-}
-
-const requireExistingProduct: RequestHandler = async (req, _res, next) => {
-  try {
-    const productId = getProductIdParam(req.params.productId);
-    const product = await getProduct(productId);
-
-    if (!product) {
-      throw new HttpError(404, "Product not found");
-    }
-
-    next();
-  } catch (error) {
-    next(error);
-  }
+type ProductParams = {
+  productId: string;
 };
 
-adminProductsRouter.post(
-  "/:productId/images",
-  requireAdmin,
-  requireExistingProduct,
-  upload.single("image"),
-  async (req, res, next) => {
-    try {
-      if (!req.file) {
+function handleProductRouteError(error: unknown): never {
+  if (error instanceof MongooseError.ValidationError) {
+    throw new HttpError(400, error.message);
+  }
+
+  throw error;
+}
+
+export async function adminProductsRoutes(app: FastifyInstance) {
+  app.post<{ Params: ProductParams }>(
+    "/:productId/images",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      const product = await getProduct(request.params.productId);
+
+      if (!product) {
+        throw new HttpError(404, "Product not found");
+      }
+
+      const file = await request.file();
+
+      if (!file) {
         throw new HttpError(400, "Image file is required");
       }
 
+      if (!file.mimetype.startsWith("image/")) {
+        throw new HttpError(400, "Only image uploads are allowed");
+      }
+
       const storedImage = await storeProductImage({
-        buffer: req.file.buffer,
-        originalName: req.file.originalname,
+        buffer: await file.toBuffer(),
+        originalName: file.filename,
       });
 
-      res.status(201).json({ imageUrl: storedImage.imageUrl });
-    } catch (error) {
-      next(error);
-    }
-  },
-);
+      reply.status(201);
+      return { imageUrl: storedImage.imageUrl };
+    },
+  );
 
-adminProductsRouter.delete("/:productId/image", requireAdmin, async (req, res, next) => {
-  try {
-    const productId = getProductIdParam(req.params.productId);
-    const product = await getProduct(productId);
+  app.delete<{ Params: ProductParams }>(
+    "/:productId/image",
+    { preHandler: requireAdmin },
+    async (request) => {
+      try {
+        const product = await getProduct(request.params.productId);
 
-    if (!product) {
-      throw new HttpError(404, "Product not found");
-    }
+        if (!product) {
+          throw new HttpError(404, "Product not found");
+        }
 
-    if (product.imageUrl) {
-      await deleteProductImage(product.imageUrl);
-    }
+        if (product.imageUrl) {
+          await deleteProductImage(product.imageUrl);
+        }
 
-    const updatedProduct = await clearProductImage(productId);
+        const updatedProduct = await clearProductImage(request.params.productId);
 
-    if (!updatedProduct) {
-      throw new HttpError(404, "Product not found");
-    }
+        if (!updatedProduct) {
+          throw new HttpError(404, "Product not found");
+        }
 
-    const response: AdminProductUpdateResponse = { product: updatedProduct };
+        const response: AdminProductUpdateResponse = { product: updatedProduct };
+        return response;
+      } catch (error) {
+        handleProductRouteError(error);
+      }
+    },
+  );
 
-    res.json(response);
-  } catch (error) {
-    handleProductRouteError(error, next);
-  }
-});
-
-adminProductsRouter.get("/", requireAdmin, async (_req, res, next) => {
-  try {
+  app.get("/", { preHandler: requireAdmin }, async () => {
     const products = await listProducts();
     const response: AdminProductListResponse = { products };
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+    return response;
+  });
 
-adminProductsRouter.post("/", requireAdmin, async (req, res, next) => {
-  try {
-    const product = await createProduct(req.body as AdminProductCreateRequest);
-    const response: AdminProductCreateResponse = { product };
+  app.post<{ Body: AdminProductCreateRequest }>(
+    "/",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      try {
+        const product = await createProduct(request.body);
+        const response: AdminProductCreateResponse = { product };
 
-    res.status(201).json(response);
-  } catch (error) {
-    handleProductRouteError(error, next);
-  }
-});
+        reply.status(201);
+        return response;
+      } catch (error) {
+        handleProductRouteError(error);
+      }
+    },
+  );
 
-adminProductsRouter.get("/:productId", requireAdmin, async (req, res, next) => {
-  try {
-    const productId = getProductIdParam(req.params.productId);
-    const product = await getProduct(productId);
+  app.get<{ Params: ProductParams }>(
+    "/:productId",
+    { preHandler: requireAdmin },
+    async (request) => {
+      const product = await getProduct(request.params.productId);
 
-    if (!product) {
-      throw new HttpError(404, "Product not found");
-    }
+      if (!product) {
+        throw new HttpError(404, "Product not found");
+      }
 
-    const response: AdminProductDetailResponse = { product };
+      const response: AdminProductDetailResponse = { product };
+      return response;
+    },
+  );
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+  app.patch<{ Body: AdminProductUpdateRequest; Params: ProductParams }>(
+    "/:productId",
+    { preHandler: requireAdmin },
+    async (request) => {
+      try {
+        const product = await updateProduct(request.params.productId, request.body);
 
-adminProductsRouter.patch("/:productId", requireAdmin, async (req, res, next) => {
-  try {
-    const productId = getProductIdParam(req.params.productId);
-    const product = await updateProduct(
-      productId,
-      req.body as AdminProductUpdateRequest,
-    );
+        if (!product) {
+          throw new HttpError(404, "Product not found");
+        }
 
-    if (!product) {
-      throw new HttpError(404, "Product not found");
-    }
-
-    const response: AdminProductUpdateResponse = { product };
-
-    res.json(response);
-  } catch (error) {
-    handleProductRouteError(error, next);
-  }
-});
+        const response: AdminProductUpdateResponse = { product };
+        return response;
+      } catch (error) {
+        handleProductRouteError(error);
+      }
+    },
+  );
+}

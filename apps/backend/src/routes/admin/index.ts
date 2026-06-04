@@ -1,13 +1,13 @@
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 
-import { adminAuthRouter } from "./auth.js";
-import { adminCustomersRouter } from "./customers.js";
-import { adminOrdersRouter } from "./orders.js";
-import { adminProductsRouter } from "./products.js";
+import { adminAuthRoutes } from "./auth.js";
+import { adminCustomersRoutes } from "./customers.js";
+import { adminOrdersRoutes } from "./orders.js";
+import { adminProductsRoutes } from "./products.js";
 
-export const adminRouter = Router();
-
-adminRouter.use("/auth", adminAuthRouter);
-adminRouter.use("/customers", adminCustomersRouter);
-adminRouter.use("/orders", adminOrdersRouter);
-adminRouter.use("/products", adminProductsRouter);
+export async function adminRoutes(app: FastifyInstance) {
+  await app.register(adminAuthRoutes, { prefix: "/auth" });
+  await app.register(adminCustomersRoutes, { prefix: "/customers" });
+  await app.register(adminOrdersRoutes, { prefix: "/orders" });
+  await app.register(adminProductsRoutes, { prefix: "/products" });
+}

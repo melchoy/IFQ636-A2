@@ -4,7 +4,7 @@ import type {
   AdminOrderStatusUpdateRequest,
   AdminOrderStatusUpdateResponse,
 } from "@otbt/types";
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 
 import { HttpError } from "../../middleware/error-handler.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
@@ -15,65 +15,64 @@ import {
   updateAdminOrderStatus,
 } from "../../modules/orders/order.service.js";
 
-export const adminOrdersRouter = Router();
+type OrderParams = {
+  orderId: string;
+};
 
-function getOrderIdParam(orderId: string | string[]) {
-  return Array.isArray(orderId) ? orderId[0] : orderId;
+function handleOrderRouteError(error: unknown): never {
+  if (error instanceof OrderValidationError) {
+    throw new HttpError(400, error.message);
+  }
+
+  throw error;
 }
 
-adminOrdersRouter.get("/", requireAdmin, async (_req, res, next) => {
-  try {
+export async function adminOrdersRoutes(app: FastifyInstance) {
+  app.get("/", { preHandler: requireAdmin }, async () => {
     const response: AdminOrderListResponse = {
       orders: await listAdminOrders(),
     };
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+    return response;
+  });
 
-adminOrdersRouter.get("/:orderId", requireAdmin, async (req, res, next) => {
-  try {
-    const orderId = getOrderIdParam(req.params.orderId);
-    const order = await getAdminOrder(orderId);
+  app.get<{ Params: OrderParams }>(
+    "/:orderId",
+    { preHandler: requireAdmin },
+    async (request) => {
+      const order = await getAdminOrder(request.params.orderId);
 
-    if (!order) {
-      throw new HttpError(404, "Order not found");
-    }
+      if (!order) {
+        throw new HttpError(404, "Order not found");
+      }
 
-    const response: AdminOrderDetailResponse = { order };
+      const response: AdminOrderDetailResponse = { order };
+      return response;
+    },
+  );
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+  app.patch<{ Body: Partial<AdminOrderStatusUpdateRequest>; Params: OrderParams }>(
+    "/:orderId/status",
+    { preHandler: requireAdmin },
+    async (request) => {
+      try {
+        const { status } = request.body;
 
-adminOrdersRouter.patch("/:orderId/status", requireAdmin, async (req, res, next) => {
-  try {
-    const orderId = getOrderIdParam(req.params.orderId);
-    const { status } = req.body as Partial<AdminOrderStatusUpdateRequest>;
+        if (!status) {
+          throw new OrderValidationError("Order status is required");
+        }
 
-    if (!status) {
-      throw new OrderValidationError("Order status is required");
-    }
+        const order = await updateAdminOrderStatus(request.params.orderId, status);
 
-    const order = await updateAdminOrderStatus(orderId, status);
+        if (!order) {
+          throw new HttpError(404, "Order not found");
+        }
 
-    if (!order) {
-      throw new HttpError(404, "Order not found");
-    }
-
-    const response: AdminOrderStatusUpdateResponse = { order };
-
-    res.json(response);
-  } catch (error) {
-    if (error instanceof OrderValidationError) {
-      next(new HttpError(400, error.message));
-      return;
-    }
-
-    next(error);
-  }
-});
+        const response: AdminOrderStatusUpdateResponse = { order };
+        return response;
+      } catch (error) {
+        handleOrderRouteError(error);
+      }
+    },
+  );
+}

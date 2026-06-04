@@ -1,25 +1,25 @@
-import type { NextFunction, Request, Response } from "express";
+import type { FastifyRequest } from "fastify";
 
 import { verifyAdminToken, type AdminTokenPayload } from "../modules/admin-users/admin-user.tokens.js";
 import { HttpError } from "./error-handler.js";
 
-export interface AdminAuthRequest extends Request {
-  admin?: AdminTokenPayload;
+declare module "fastify" {
+  interface FastifyRequest {
+    admin?: AdminTokenPayload;
+  }
 }
 
-export function requireAdmin(req: AdminAuthRequest, _res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
+export async function requireAdmin(request: FastifyRequest) {
+  const authHeader = request.headers.authorization;
 
   if (!authHeader?.startsWith("Bearer ")) {
-    next(new HttpError(401, "Not authorized"));
-    return;
+    throw new HttpError(401, "Not authorized");
   }
 
   try {
     const token = authHeader.split(" ")[1];
-    req.admin = verifyAdminToken(token);
-    next();
+    request.admin = verifyAdminToken(token);
   } catch {
-    next(new HttpError(401, "Not authorized"));
+    throw new HttpError(401, "Not authorized");
   }
 }

@@ -1,13 +1,15 @@
 import type { ProductDetailResponse, ProductListResponse } from "@otbt/types";
-import { Router } from "express";
+import type { FastifyInstance } from "fastify";
 
 import { HttpError } from "../../middleware/error-handler.js";
 import { getProduct, listProducts } from "../../modules/products/product.service.js";
 
-export const storefrontProductsRouter = Router();
+type ProductParams = {
+  productId: string;
+};
 
-storefrontProductsRouter.get("/", async (_req, res, next) => {
-  try {
+export async function storefrontProductsRoutes(app: FastifyInstance) {
+  app.get("/", async () => {
     const products = await listProducts({
       status: "active",
       visibility: "public",
@@ -23,15 +25,11 @@ storefrontProductsRouter.get("/", async (_req, res, next) => {
       })),
     };
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+    return response;
+  });
 
-storefrontProductsRouter.get("/:productId", async (req, res, next) => {
-  try {
-    const product = await getProduct(req.params.productId, {
+  app.get<{ Params: ProductParams }>("/:productId", async (request) => {
+    const product = await getProduct(request.params.productId, {
       status: "active",
       visibility: "public",
     });
@@ -54,8 +52,6 @@ storefrontProductsRouter.get("/:productId", async (req, res, next) => {
       },
     };
 
-    res.json(response);
-  } catch (error) {
-    next(error);
-  }
-});
+    return response;
+  });
+}

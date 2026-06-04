@@ -4,13 +4,10 @@ import type {
   OrderDetailResponse,
   OrderHistoryResponse,
 } from "@otbt/types";
-import { Router } from "express";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import { HttpError } from "../../middleware/error-handler.js";
-import {
-  requireCustomer,
-  type CustomerAuthRequest,
-} from "../../middleware/require-customer.js";
+import { requireCustomer } from "../../middleware/require-customer.js";
 import {
   confirmStripeCheckoutOrder,
   createCheckoutSessionForOrder,
@@ -21,7 +18,18 @@ import {
 } from "../../modules/orders/order.service.js";
 import { PaymentValidationError } from "../../modules/payments/payment.service.js";
 
-export const storefrontOrdersRouter = Router();
+type OrderParams = {
+  orderId: string;
+};
+
+type StripeSuccessQuery = {
+  orderId?: string | string[];
+  session_id?: string | string[];
+};
+
+type StripeCancelQuery = {
+  orderId?: string | string[];
+};
 
 function isPresentString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -67,159 +75,135 @@ function parseCheckoutRequest(body: unknown): CheckoutRequest {
   return input as CheckoutRequest;
 }
 
-function getOrderIdParam(orderId: string | string[]) {
-  return Array.isArray(orderId) ? orderId[0] : orderId;
-}
-
 function getStringQuery(value: unknown) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function resolvePublicOrigin(req: CustomerAuthRequest) {
-  const requestOrigin = getStringQuery(req.headers.origin);
+function resolvePublicOrigin(request: FastifyRequest) {
+  const requestOrigin = getStringQuery(request.headers.origin);
 
   if (requestOrigin) {
     return requestOrigin;
   }
 
-  const forwardedProto = getStringQuery(req.headers["x-forwarded-proto"])
+  const forwardedProto = getStringQuery(request.headers["x-forwarded-proto"])
     ?.split(",")[0]
     ?.trim();
-  const forwardedHost = getStringQuery(req.headers["x-forwarded-host"])
+  const forwardedHost = getStringQuery(request.headers["x-forwarded-host"])
     ?.split(",")[0]
     ?.trim();
-  const host = (forwardedHost ?? req.headers.host)?.split(",")[0]?.trim();
+  const host = (forwardedHost ?? request.headers.host)?.split(",")[0]?.trim();
 
   if (!host) {
     throw new OrderValidationError("Unable to resolve checkout redirect host");
   }
 
-  return `${forwardedProto ?? req.protocol}://${host}`;
+  return `${forwardedProto ?? "http"}://${host}`;
 }
 
-storefrontOrdersRouter.get(
-  "/",
-  requireCustomer,
-  async (req: CustomerAuthRequest, res, next) => {
-    try {
-      if (!req.customer) {
+function handleCheckoutRouteError(error: unknown): never {
+  if (
+    error instanceof OrderValidationError ||
+    error instanceof PaymentValidationError
+  ) {
+    throw new HttpError(400, error.message);
+  }
+
+  throw error;
+}
+
+export async function storefrontOrdersRoutes(app: FastifyInstance) {
+  app.get("/", { preHandler: requireCustomer }, async (request) => {
+    if (!request.customer) {
+      throw new HttpError(401, "Not authorized");
+    }
+
+    const response: OrderHistoryResponse = {
+      orders: await listOrdersForCustomer(request.customer.id),
+    };
+
+    return response;
+  });
+
+  app.get<{ Querystring: StripeSuccessQuery }>(
+    "/checkout/stripe/success",
+    async (request, reply) => {
+      try {
+        const orderId = getStringQuery(request.query.orderId);
+        const sessionId = getStringQuery(request.query.session_id);
+
+        if (!isPresentString(orderId) || !isPresentString(sessionId)) {
+          throw new OrderValidationError("Invalid checkout confirmation");
+        }
+
+        const order = await confirmStripeCheckoutOrder(orderId, sessionId);
+
+        return reply.redirect(
+          `/checkout?payment=success&orderId=${encodeURIComponent(order.id)}`,
+        );
+      } catch (error) {
+        handleCheckoutRouteError(error);
+      }
+    },
+  );
+
+  app.get<{ Querystring: StripeCancelQuery }>(
+    "/checkout/stripe/cancel",
+    async (request, reply) => {
+      try {
+        const orderId = getStringQuery(request.query.orderId);
+
+        if (!isPresentString(orderId)) {
+          throw new OrderValidationError("Invalid checkout cancellation");
+        }
+
+        await markStripeCheckoutCancelled(orderId);
+
+        return reply.redirect(
+          `/checkout?payment=cancelled&orderId=${encodeURIComponent(orderId)}`,
+        );
+      } catch (error) {
+        handleCheckoutRouteError(error);
+      }
+    },
+  );
+
+  app.get<{ Params: OrderParams }>(
+    "/:orderId",
+    { preHandler: requireCustomer },
+    async (request) => {
+      if (!request.customer) {
         throw new HttpError(401, "Not authorized");
       }
 
-      const response: OrderHistoryResponse = {
-        orders: await listOrdersForCustomer(req.customer.id),
-      };
-
-      res.json(response);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-storefrontOrdersRouter.get(
-  "/checkout/stripe/success",
-  async (req: CustomerAuthRequest, res, next) => {
-    try {
-      const orderId = getStringQuery(req.query.orderId);
-      const sessionId = getStringQuery(req.query.session_id);
-
-      if (!isPresentString(orderId) || !isPresentString(sessionId)) {
-        throw new OrderValidationError("Invalid checkout confirmation");
-      }
-
-      const order = await confirmStripeCheckoutOrder(orderId, sessionId);
-
-      res.redirect(
-        `/checkout?payment=success&orderId=${encodeURIComponent(order.id)}`,
+      const order = await getOrderForCustomer(
+        request.params.orderId,
+        request.customer.id,
       );
-    } catch (error) {
-      if (
-        error instanceof OrderValidationError ||
-        error instanceof PaymentValidationError
-      ) {
-        next(new HttpError(400, error.message));
-        return;
-      }
-
-      next(error);
-    }
-  },
-);
-
-storefrontOrdersRouter.get(
-  "/checkout/stripe/cancel",
-  async (req: CustomerAuthRequest, res, next) => {
-    try {
-      const orderId = getStringQuery(req.query.orderId);
-
-      if (!isPresentString(orderId)) {
-        throw new OrderValidationError("Invalid checkout cancellation");
-      }
-
-      await markStripeCheckoutCancelled(orderId);
-
-      res.redirect(
-        `/checkout?payment=cancelled&orderId=${encodeURIComponent(orderId)}`,
-      );
-    } catch (error) {
-      if (error instanceof OrderValidationError) {
-        next(new HttpError(400, error.message));
-        return;
-      }
-
-      next(error);
-    }
-  },
-);
-
-storefrontOrdersRouter.get(
-  "/:orderId",
-  requireCustomer,
-  async (req: CustomerAuthRequest, res, next) => {
-    try {
-      if (!req.customer) {
-        throw new HttpError(401, "Not authorized");
-      }
-
-      const orderId = getOrderIdParam(req.params.orderId);
-      const order = await getOrderForCustomer(orderId, req.customer.id);
 
       if (!order) {
         throw new HttpError(404, "Order not found");
       }
 
       const response: OrderDetailResponse = { order };
+      return response;
+    },
+  );
 
-      res.json(response);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-storefrontOrdersRouter.post(
-  "/checkout",
-  async (req: CustomerAuthRequest, res, next) => {
+  app.post<{ Body: CheckoutRequest }>("/checkout", async (request, reply) => {
     try {
-      const checkoutRequest = parseCheckoutRequest(req.body);
-      const response: CheckoutSessionResponse = await createCheckoutSessionForOrder(
-        checkoutRequest,
-        req.customer?.id ?? null,
-        resolvePublicOrigin(req),
-      );
+      const checkoutRequest = parseCheckoutRequest(request.body);
+      const response: CheckoutSessionResponse =
+        await createCheckoutSessionForOrder(
+          checkoutRequest,
+          request.customer?.id ?? null,
+          resolvePublicOrigin(request),
+        );
 
-      res.status(201).json(response);
+      reply.status(201);
+      return response;
     } catch (error) {
-      if (
-        error instanceof OrderValidationError ||
-        error instanceof PaymentValidationError
-      ) {
-        next(new HttpError(400, error.message));
-        return;
-      }
-
-      next(error);
+      handleCheckoutRouteError(error);
     }
-  },
-);
+  });
+}

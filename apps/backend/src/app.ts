@@ -1,20 +1,31 @@
-import cors from "cors";
-import express from "express";
+import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
+import Fastify from "fastify";
 
 import { env } from "./config/env.js";
-import { errorHandler } from "./middleware/error-handler.js";
-import { adminRouter } from "./routes/admin/index.js";
-import { healthRouter } from "./routes/health.js";
-import { storefrontRouter } from "./routes/storefront/index.js";
+import { registerErrorHandler } from "./middleware/error-handler.js";
+import { adminRoutes } from "./routes/admin/index.js";
+import { healthRoutes } from "./routes/health.js";
+import { storefrontRoutes } from "./routes/storefront/index.js";
 
-export const app = express();
+export async function buildApp() {
+  const app = Fastify();
 
-app.use(cors({ origin: env.clientOrigins }));
-app.use(express.json());
-app.use("/uploads", express.static(env.uploadsDir));
+  registerErrorHandler(app);
 
-app.use("/health", healthRouter);
-app.use("/api/admin", adminRouter);
-app.use("/api/storefront", storefrontRouter);
+  await app.register(cors, { origin: env.clientOrigins });
+  await app.register(fastifyStatic, {
+    prefix: "/uploads/",
+    root: env.uploadsDir,
+  });
+  await app.register(multipart, {
+    limits: { fileSize: 8 * 1024 * 1024 },
+  });
 
-app.use(errorHandler);
+  await app.register(healthRoutes, { prefix: "/health" });
+  await app.register(adminRoutes, { prefix: "/api/admin" });
+  await app.register(storefrontRoutes, { prefix: "/api/storefront" });
+
+  return app;
+}

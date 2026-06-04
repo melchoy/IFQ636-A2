@@ -1,4 +1,4 @@
-import type { ErrorRequestHandler } from "express";
+import type { FastifyInstance } from "fastify";
 
 export class HttpError extends Error {
   constructor(
@@ -9,9 +9,12 @@ export class HttpError extends Error {
   }
 }
 
-export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
-  const status = error instanceof HttpError ? error.status : 500;
-  const message = error instanceof HttpError ? error.message : "Unexpected server error";
+export function registerErrorHandler(app: FastifyInstance) {
+  app.setErrorHandler((error, _request, reply) => {
+    const status = error instanceof HttpError ? error.status : 500;
+    const message =
+      error instanceof HttpError ? error.message : "Unexpected server error";
 
-  res.status(status).json({ error: message });
-};
+    reply.status(status).send({ error: message });
+  });
+}
