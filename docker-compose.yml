@@ -1,4 +1,4 @@
-name: ${COMPOSE_PROJECT_NAME:-ifq683-a1}
+name: ${COMPOSE_PROJECT_NAME:-ifq683-a2}
 
 services:
   mailpit:
