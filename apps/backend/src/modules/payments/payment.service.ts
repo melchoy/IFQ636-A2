@@ -1,15 +1,9 @@
 import Stripe from "stripe";
-
+import { PaymentValidationError } from "./payment.errors.js";
 import { env } from "../../config/env.js";
 
 const stripe = new Stripe(env.stripeSecretKey);
 
-export class PaymentValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PaymentValidationError";
-  }
-}
 
 export async function createCheckoutSession(input: {
   cancelUrl: string;

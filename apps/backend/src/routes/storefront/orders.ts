@@ -16,7 +16,7 @@ import {
   markStripeCheckoutCancelled,
   OrderValidationError,
 } from "../../modules/orders/order.service.js";
-import { PaymentValidationError } from "../../modules/payments/payment.service.js";
+import { PaymentValidationError } from "../../modules/payments/payment.errors.js";
 
 type OrderParams = {
   orderId: string;
