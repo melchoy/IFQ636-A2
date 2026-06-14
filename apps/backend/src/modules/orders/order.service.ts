@@ -20,7 +20,7 @@ import {
 import {
   createCheckoutSession,
   verifyCheckoutSession,
-} from "../payments/payment.service.js";
+} from "../payments/payment.service.js"; //from interface instead?
 import { ProductModel } from "../products/product.model.js";
 import { orderEmailRegistry } from "./emails/email.registry.js";
 import { OrderModel, type OrderDocument } from "./order.model.js";
@@ -506,15 +506,7 @@ export async function createCheckoutOrder(
   return serializedOrder;
 }
 
-function getStripePaymentIntentId(
-  paymentIntent: string | { id: string } | null,
-) {
-  if (!paymentIntent) {
-    return null;
-  }
 
-  return typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
-}
 
 function getOrderOrThrow(order: OrderRecord | null) {
   if (!order) {
@@ -616,14 +608,12 @@ export async function confirmStripeCheckoutOrder(
       {
         $set: {
           payment: {
-            amount: checkoutSession.amount_total
-              ? checkoutSession.amount_total / 100
+            amount: checkoutSession.amount
+              ? checkoutSession.amount
               : existingOrder.total,
-            checkoutSessionId: checkoutSession.id,
+            checkoutSessionId: checkoutSession.providerSessionId,
             currency: "aud",
-            paymentIntentId: getStripePaymentIntentId(
-              checkoutSession.payment_intent,
-            ),
+            paymentIntentId: checkoutSession.paymentReference,
             provider: "stripe",
             status: "paid",
           },

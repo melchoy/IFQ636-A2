@@ -5,6 +5,16 @@ import { env } from "../../config/env.js";
 const stripe = new Stripe(env.stripeSecretKey);
 
 
+  function getPaymentIntentId(
+    paymentIntent: string | { id: string } | null,
+  ) {
+    if (!paymentIntent) {
+      return null;
+    }
+  
+    return typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
+  }
+
 export async function createCheckoutSession(input: {
   cancelUrl: string;
   customerEmail: string;
@@ -50,5 +60,10 @@ export async function verifyCheckoutSession(input: {
     throw new PaymentValidationError("Payment could not be verified");
   }
 
-  return session;
+  return {
+      amount: session.amount_total! / 100,
+      currency: session.currency!,
+      paymentReference: getPaymentIntentId(session.payment_intent),
+      providerSessionId: session.id,
+    };
 }
