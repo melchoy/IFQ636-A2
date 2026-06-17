@@ -7,6 +7,8 @@
     "dev": "tsx watch --include ../../packages/types/src --include .env src/server.ts",
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
+    "test:typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "pnpm run test:typecheck && mocha --import=tsx \"test/**/*.test.ts\"",
     "start": "node dist/server.js"
   },
   "dependencies": {
@@ -26,10 +28,14 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/chai": "^5.2.3",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "^8.0.0",
+    "chai": "^5.3.3",
     "esbuild": "^0.28.0",
+    "mocha": "^11.7.5",
     "tsx": "^4.0.0",
     "typescript": "^5.9.0"
   }
