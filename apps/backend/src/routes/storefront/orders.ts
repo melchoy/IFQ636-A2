@@ -25,6 +25,7 @@ type OrderParams = {
 type CheckoutSuccessQuery = {
   orderId?: string | string[];
   session_id?: string | string[];
+  token?: string | string[]; // Paypal equivalent of session_id.
 };
 
 type CheckoutCancelQuery = {
@@ -130,7 +131,8 @@ export async function storefrontOrdersRoutes(app: FastifyInstance) {
     async (request, reply) => {
       try {
         const orderId = getStringQuery(request.query.orderId);
-        const sessionId = getStringQuery(request.query.session_id);
+        const sessionId = getStringQuery(request.query.session_id) ?? getStringQuery(request.query.token);
+
 
         if (!isPresentString(orderId) || !isPresentString(sessionId)) {
           throw new OrderValidationError("Invalid checkout confirmation");

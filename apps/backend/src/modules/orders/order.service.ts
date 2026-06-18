@@ -550,12 +550,16 @@ export async function createCheckoutSessionForOrder(
   const createdOrder = await OrderModel.create(order);
   const orderId = createdOrder._id.toString();
   const encodedOrderId = encodeURIComponent(orderId);
+  const successUrl  = input.paymentMethod === "stripe"
+    ? `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/success?orderId=${encodedOrderId}&session_id={CHECKOUT_SESSION_ID}`
+    : `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/success?orderId=${encodedOrderId}`;
+  const cancelUrl = `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/cancel?orderId=${encodedOrderId}`;
   const checkoutSession = await provider.createCheckoutSession({
-    cancelUrl: `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/cancel?orderId=${encodedOrderId}`,
+    cancelUrl: cancelUrl,
     customerEmail: input.customer.email,
     items,
     orderId,
-    successUrl: `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/success?orderId=${encodedOrderId}&session_id={CHECKOUT_SESSION_ID}`,
+    successUrl: successUrl,
   });
 
   await OrderModel.updateOne(
