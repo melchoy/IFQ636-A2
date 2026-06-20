@@ -23,6 +23,7 @@ import {
 } from "../payments/payment.service.js";
 import { ProductModel } from "../products/product.model.js";
 import { orderEmailRegistry } from "./emails/email.registry.js";
+import { orderNumberService } from "./order-number.service.js";
 import { OrderModel, type OrderDocument } from "./order.model.js";
 
 type OrderRecord = OrderDocument & {
@@ -71,6 +72,7 @@ async function hydrateOrderItemImages(items: OrderItem[]): Promise<OrderItem[]> 
 async function serializeOrder(order: OrderRecord): Promise<Order> {
   return {
     id: order._id.toString(),
+    orderNumber: order.orderNumber,
     customer: order.customer,
     deliveryAddress: order.deliveryAddress,
     items: await hydrateOrderItemImages(order.items),
@@ -483,6 +485,7 @@ export async function createCheckoutOrder(
   const subtotal = items.reduce((total, item) => total + item.lineTotal, 0);
 
   const order: OrderCreate = {
+    orderNumber: await orderNumberService.generateNext(),
     customer: {
       customerId,
       firstName: input.customer.firstName,
@@ -533,6 +536,7 @@ export async function createCheckoutSessionForOrder(
   const subtotal = items.reduce((total, item) => total + item.lineTotal, 0);
 
   const order: OrderCreate = {
+    orderNumber: await orderNumberService.generateNext(),
     customer: {
       customerId,
       firstName: input.customer.firstName,
