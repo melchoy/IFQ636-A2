@@ -2,9 +2,14 @@ import type {
   NotificationFilter,
   NotificationItem,
   NotificationSummary,
+  Order,
 } from "@otbt/types";
 
 import type { NotificationDocument } from "./notification.model.js";
+import {
+  NotificationPublisher,
+  type NotificationEventPublisher,
+} from "./notification.publisher.js";
 import {
   MongoNotificationRepository,
   type NotificationCreateInput,
@@ -34,11 +39,35 @@ export class NotificationService {
   constructor(
     private readonly repository: NotificationRepository =
       new MongoNotificationRepository(),
+    private readonly publisher: NotificationEventPublisher =
+      new NotificationPublisher(),
   ) {}
 
   async create(input: NotificationCreateInput) {
     const created = await this.repository.create(input);
     return serializeNotification(created);
+  }
+
+  async recordOrderReceived(order: Order) {
+    return await this.createAndPublish({
+      action: "received",
+      message: `Order #${order.id} from storefront checkout`,
+      resource: "orders",
+      resourceId: order.id,
+      title: "New order received",
+      type: "order",
+    });
+  }
+
+  async recordOrderStatusChanged(order: Order) {
+    return await this.createAndPublish({
+      action: "status_changed",
+      message: `Order #${order.id} marked as ${order.status}`,
+      resource: "orders",
+      resourceId: order.id,
+      title: "Order status changed",
+      type: "order",
+    });
   }
 
   async list(filter: NotificationFilter = "all") {
@@ -75,7 +104,13 @@ export class NotificationService {
 
     const notification = await this.repository.updateStatus(id, update);
 
-    return notification ? serializeNotification(notification) : null;
+    if (!notification) {
+      return null;
+    }
+
+    const serialized = serializeNotification(notification);
+    this.publisher.publishUpdated(serialized);
+    return serialized;
   }
 
   private resolveListQuery(filter: NotificationFilter): NotificationQuery {
@@ -88,6 +123,12 @@ export class NotificationService {
     }
 
     return { status: { $ne: "dismissed" } };
+  }
+
+  private async createAndPublish(input: NotificationCreateInput) {
+    const notification = await this.create(input);
+    this.publisher.publishCreated(notification);
+    return notification;
   }
 }
 

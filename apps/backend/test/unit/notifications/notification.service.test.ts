@@ -8,6 +8,7 @@ import {
   type NotificationRepository,
   type NotificationStatusUpdate,
 } from "../../../src/modules/notifications/index.js";
+import type { NotificationItem, Order } from "@otbt/types";
 
 function createDocument(
   overrides: Partial<NotificationDocument> = {},
@@ -70,6 +71,49 @@ class FakeNotificationRepository implements NotificationRepository {
     this.updateStatusCalls.push({ id, update });
     return createDocument({ readAt: update.readAt ?? null, status: update.status });
   }
+}
+
+class FakeNotificationPublisher {
+  created: NotificationItem[] = [];
+  updated: NotificationItem[] = [];
+
+  publishCreated(notification: NotificationItem) {
+    this.created.push(notification);
+  }
+
+  publishUpdated(notification: NotificationItem) {
+    this.updated.push(notification);
+  }
+}
+
+function createOrder(overrides: Partial<Order> = {}): Order {
+  return {
+    id: "order-1001",
+    customer: {
+      customerId: null,
+      email: "customer@example.com",
+      firstName: "Mara",
+      lastName: "Vale",
+      phone: null,
+    },
+    deliveryAddress: {
+      addressLine1: "1 Thorn Lane",
+      addressLine2: null,
+      instructions: null,
+      postcode: "4000",
+      recipientName: "Mara Vale",
+      state: "QLD",
+      suburb: "Brisbane",
+    },
+    items: [],
+    payment: null,
+    status: "pending",
+    subtotal: 42,
+    total: 42,
+    createdAt: "2026-06-20T00:00:00.000Z",
+    updatedAt: "2026-06-20T00:00:00.000Z",
+    ...overrides,
+  };
 }
 
 describe("NotificationService", () => {
@@ -142,5 +186,61 @@ describe("NotificationService", () => {
     });
     expect(repository.updateManyCalls[0].update.status).to.equal("read");
     expect(repository.updateManyCalls[0].update.readAt).to.be.instanceOf(Date);
+  });
+
+  it("records an order received notification and publishes it", async () => {
+    const repository = new FakeNotificationRepository();
+    const publisher = new FakeNotificationPublisher();
+    const service = new NotificationService(repository, publisher);
+
+    const notification = await service.recordOrderReceived(createOrder());
+
+    expect(repository.createdInputs).to.deep.equal([
+      {
+        action: "received",
+        message: "Order #order-1001 from storefront checkout",
+        resource: "orders",
+        resourceId: "order-1001",
+        title: "New order received",
+        type: "order",
+      },
+    ]);
+    expect(publisher.created).to.deep.equal([notification]);
+    expect(publisher.updated).to.deep.equal([]);
+  });
+
+  it("records an order status notification and publishes it", async () => {
+    const repository = new FakeNotificationRepository();
+    const publisher = new FakeNotificationPublisher();
+    const service = new NotificationService(repository, publisher);
+
+    const notification = await service.recordOrderStatusChanged(
+      createOrder({ status: "packed" }),
+    );
+
+    expect(repository.createdInputs).to.deep.equal([
+      {
+        action: "status_changed",
+        message: "Order #order-1001 marked as packed",
+        resource: "orders",
+        resourceId: "order-1001",
+        title: "Order status changed",
+        type: "order",
+      },
+    ]);
+    expect(publisher.created).to.deep.equal([notification]);
+    expect(publisher.updated).to.deep.equal([]);
+  });
+
+  it("publishes notification status updates", async () => {
+    const repository = new FakeNotificationRepository();
+    const publisher = new FakeNotificationPublisher();
+    const service = new NotificationService(repository, publisher);
+
+    const notification = await service.updateStatus("notification-1", "read");
+
+    expect(repository.updateStatusCalls).to.have.length(1);
+    expect(publisher.created).to.deep.equal([]);
+    expect(publisher.updated).to.deep.equal([notification]);
   });
 });
