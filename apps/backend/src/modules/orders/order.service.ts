@@ -17,6 +17,7 @@ import {
   escapeHtml,
   renderRegisteredEmailTemplate,
 } from "../email/email.templates.js";
+import { notificationService } from "../notifications/index.js";
 import {
   createCheckoutSession,
   verifyCheckoutSession,
@@ -635,6 +636,7 @@ export async function confirmStripeCheckoutOrder(
   const serializedOrder = await serializeOrder(updatedOrder);
 
   await sendOrderConfirmationEmail(serializedOrder);
+  await notificationService.recordOrderReceived(serializedOrder);
 
   return serializedOrder;
 }
@@ -723,6 +725,10 @@ export async function updateAdminOrderStatus(
   const serializedOrder = await serializeOrder(savedOrder as OrderRecord);
 
   await sendOrderStatusUpdateEmail(serializedOrder, previousStatus);
+
+  if (serializedOrder.status !== previousStatus) {
+    await notificationService.recordOrderStatusChanged(serializedOrder);
+  }
 
   return serializedOrder;
 }
