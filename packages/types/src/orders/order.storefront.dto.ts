@@ -14,6 +14,7 @@ export interface CheckoutRequest {
   customer: Omit<OrderCustomerSnapshot, "customerId">;
   deliveryAddress: OrderDeliveryAddress;
   items: CheckoutLineItemRequest[];
+  paymentMethod: "stripe" | "paypal";
 }
 
 export interface CheckoutResponse {
