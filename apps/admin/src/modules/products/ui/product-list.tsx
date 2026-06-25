@@ -155,14 +155,14 @@ function ProductActions({ product }: { product: ProductListItem }) {
           >
             Edit
           </Link>
-          <button
+          <Link
             className="flex w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
             onClick={closeMenu}
             role="menuitem"
-            type="button"
+            to="/products/new" state={{ product: product }}
           >
             Duplicate
-          </button>
+          </Link>
           <div className="-mx-1 my-1 h-px bg-border" />
           <button
             className="flex w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
