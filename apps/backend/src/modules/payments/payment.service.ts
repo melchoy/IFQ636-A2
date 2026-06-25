@@ -1,15 +1,19 @@
 import Stripe from "stripe";
-
+import { PaymentValidationError } from "./payment.errors.js";
 import { env } from "../../config/env.js";
 
 const stripe = new Stripe(env.stripeSecretKey);
 
-export class PaymentValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "PaymentValidationError";
+
+  function getPaymentIntentId(
+    paymentIntent: string | { id: string } | null,
+  ) {
+    if (!paymentIntent) {
+      return null;
+    }
+  
+    return typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
   }
-}
 
 export async function createCheckoutSession(input: {
   cancelUrl: string;
@@ -56,5 +60,10 @@ export async function verifyCheckoutSession(input: {
     throw new PaymentValidationError("Payment could not be verified");
   }
 
-  return session;
+  return {
+      amount: session.amount_total! / 100,
+      currency: session.currency!,
+      paymentReference: getPaymentIntentId(session.payment_intent),
+      providerSessionId: session.id,
+    };
 }
