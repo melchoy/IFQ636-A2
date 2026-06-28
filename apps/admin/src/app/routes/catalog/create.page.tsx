@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Link } from "@otbt/web";
 
 import type { ProductCreate } from "@otbt/types";
@@ -21,6 +21,16 @@ const defaultProductValues: ProductCreate = {
   stock: 0,
   status: "draft",
   visibility: "hidden",
+};
+
+
+const setProductValues = (product: ProductCreate): ProductCreate => {
+  const productFields = { ...product };
+  productFields.name = `${product.name} (Copy)`;
+  productFields.sku = `${product.sku}-2`;
+  productFields.status = "draft";
+  productFields.visibility = "hidden";
+  return productFields;
 };
 
 export function CatalogueCreatePage() {
@@ -80,7 +90,7 @@ export function CatalogueCreatePage() {
       </div>
 
       <ProductForm
-        defaultValues={defaultProductValues}
+        defaultValues={setProductValues(useLocation().state?.product || defaultProductValues)}
         error={createProduct.error}
         formId="product-create-form"
         onSubmit={saveProduct}

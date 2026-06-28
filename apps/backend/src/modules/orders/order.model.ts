@@ -61,7 +61,7 @@ const orderItemSchema = new Schema<OrderItem>(
 
 const orderPaymentSchema = new Schema<OrderPayment>(
   {
-    provider: { type: String, enum: ["stripe"], required: true },
+    provider: { type: String, enum: ["stripe", "paypal"], required: true },
     status: {
       type: String,
       enum: ["pending", "paid", "failed"],

@@ -9,25 +9,26 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { HttpError } from "../../middleware/error-handler.js";
 import { requireCustomer } from "../../middleware/require-customer.js";
 import {
-  confirmStripeCheckoutOrder,
+  confirmCheckoutOrder,
   createCheckoutSessionForOrder,
   getOrderForCustomer,
   listOrdersForCustomer,
-  markStripeCheckoutCancelled,
+  markCheckoutCancelled,
   OrderValidationError,
 } from "../../modules/orders/order.service.js";
-import { PaymentValidationError } from "../../modules/payments/payment.service.js";
+import { PaymentValidationError } from "../../modules/payments/payment.errors.js";
 
 type OrderParams = {
   orderId: string;
 };
 
-type StripeSuccessQuery = {
+type CheckoutSuccessQuery = {
   orderId?: string | string[];
   session_id?: string | string[];
+  token?: string | string[]; // Paypal equivalent of session_id.
 };
 
-type StripeCancelQuery = {
+type CheckoutCancelQuery = {
   orderId?: string | string[];
 };
 
@@ -125,18 +126,19 @@ export async function storefrontOrdersRoutes(app: FastifyInstance) {
     return response;
   });
 
-  app.get<{ Querystring: StripeSuccessQuery }>(
-    "/checkout/stripe/success",
+  app.get<{ Querystring: CheckoutSuccessQuery }>(
+    "/checkout/:paymentMethod/success",
     async (request, reply) => {
       try {
         const orderId = getStringQuery(request.query.orderId);
-        const sessionId = getStringQuery(request.query.session_id);
+        const sessionId = getStringQuery(request.query.session_id) ?? getStringQuery(request.query.token);
+
 
         if (!isPresentString(orderId) || !isPresentString(sessionId)) {
           throw new OrderValidationError("Invalid checkout confirmation");
         }
 
-        const order = await confirmStripeCheckoutOrder(orderId, sessionId);
+        const order = await confirmCheckoutOrder(orderId, sessionId);
 
         return reply.redirect(
           `/checkout?payment=success&orderId=${encodeURIComponent(order.id)}&orderNumber=${encodeURIComponent(order.orderNumber)}`,
@@ -147,8 +149,8 @@ export async function storefrontOrdersRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get<{ Querystring: StripeCancelQuery }>(
-    "/checkout/stripe/cancel",
+  app.get<{ Querystring: CheckoutCancelQuery }>(
+    "/checkout/:paymentMethod/cancel",
     async (request, reply) => {
       try {
         const orderId = getStringQuery(request.query.orderId);
@@ -157,7 +159,7 @@ export async function storefrontOrdersRoutes(app: FastifyInstance) {
           throw new OrderValidationError("Invalid checkout cancellation");
         }
 
-        await markStripeCheckoutCancelled(orderId);
+        await markCheckoutCancelled(orderId);
 
         return reply.redirect(
           `/checkout?payment=cancelled&orderId=${encodeURIComponent(orderId)}`,

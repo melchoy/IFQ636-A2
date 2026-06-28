@@ -17,6 +17,13 @@ const statusConfig: Record<
   shipped: { variant: "outline", label: "Shipped" },
 };
 
+const paymentStatusConfig: Record<string, { label: string; className: string }> = {
+  pending: { label: "Pending", className: "rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700" },
+  paid: { label: "Approved", className: "rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700" },
+  declined: { label: "Declined", className: "rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700" },
+};
+
+
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
   currency: "AUD",
   style: "currency",
@@ -62,7 +69,8 @@ export function OrderList({ orders }: OrderListProps) {
         <tbody className="[&_tr:last-child]:border-0">
           {orders.map((order) => {
             const status = statusConfig[order.status];
-
+            order.paymentStatus = order.paymentStatus || "pending"; // Default to "pending" if paymentStatus is undefined
+            
             return (
               <tr
                 className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
@@ -87,7 +95,10 @@ export function OrderList({ orders }: OrderListProps) {
                   <Badge variant={status.variant}>{status.label}</Badge>
                 </td>
                 <td className="p-4 text-right align-middle font-medium">
-                  {currencyFormatter.format(order.total)}
+                  <p className="font-medium text-foreground">{currencyFormatter.format(order.total)}</p>
+                  <p className={paymentStatusConfig[order.paymentStatus]?.className}>
+                    {paymentStatusConfig[order.paymentStatus]?.label}
+                  </p>
                 </td>
                 <td className="whitespace-nowrap p-4 text-right align-middle text-muted-foreground">
                   {new Date(order.createdAt).toLocaleDateString()}

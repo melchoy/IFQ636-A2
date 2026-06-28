@@ -32,7 +32,7 @@ export interface OrderItem {
 }
 
 export interface OrderPayment {
-  provider: "stripe";
+  provider: "stripe" | "paypal"; 
   status: OrderPaymentStatus;
   amount: number;
   currency: "aud";

@@ -17,10 +17,8 @@ import {
   escapeHtml,
   renderRegisteredEmailTemplate,
 } from "../email/email.templates.js";
-import {
-  createCheckoutSession,
-  verifyCheckoutSession,
-} from "../payments/payment.service.js";
+import { notificationService } from "../notifications/index.js";
+import { getPaymentProvider } from "../payments/payment-provider.factory.js";
 import { ProductModel } from "../products/product.model.js";
 import { orderEmailRegistry } from "./emails/email.registry.js";
 import { orderNumberService } from "./order-number.service.js";
@@ -124,6 +122,7 @@ async function serializeAdminOrderListItem(
     customerEmail: serializedOrder.customer.email,
     status: serializedOrder.status,
     total: serializedOrder.total,
+    paymentStatus: serializedOrder.payment?.status || null,
     itemCount: serializedOrder.items.reduce(
       (total, item) => total + item.quantity,
       0,
@@ -509,15 +508,7 @@ export async function createCheckoutOrder(
   return serializedOrder;
 }
 
-function getStripePaymentIntentId(
-  paymentIntent: string | { id: string } | null,
-) {
-  if (!paymentIntent) {
-    return null;
-  }
 
-  return typeof paymentIntent === "string" ? paymentIntent : paymentIntent.id;
-}
 
 function getOrderOrThrow(order: OrderRecord | null) {
   if (!order) {
@@ -535,6 +526,8 @@ export async function createCheckoutSessionForOrder(
   const items = await buildOrderItems(input.items);
   const subtotal = items.reduce((total, item) => total + item.lineTotal, 0);
 
+  const provider = getPaymentProvider(input.paymentMethod);
+
   const order: OrderCreate = {
     orderNumber: await orderNumberService.generateNext(),
     customer: {
@@ -551,7 +544,7 @@ export async function createCheckoutSessionForOrder(
       checkoutSessionId: null,
       currency: "aud",
       paymentIntentId: null,
-      provider: "stripe",
+      provider: input.paymentMethod,
       status: "pending",
     },
     status: "pending",
@@ -562,30 +555,30 @@ export async function createCheckoutSessionForOrder(
   const createdOrder = await OrderModel.create(order);
   const orderId = createdOrder._id.toString();
   const encodedOrderId = encodeURIComponent(orderId);
-  const checkoutSession = await createCheckoutSession({
-    cancelUrl: `${origin}/api/storefront/orders/checkout/stripe/cancel?orderId=${encodedOrderId}`,
+  const successUrl  = input.paymentMethod === "stripe"
+    ? `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/success?orderId=${encodedOrderId}&session_id={CHECKOUT_SESSION_ID}`
+    : `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/success?orderId=${encodedOrderId}`;
+  const cancelUrl = `${origin}/api/storefront/orders/checkout/${input.paymentMethod}/cancel?orderId=${encodedOrderId}`;
+  const checkoutSession = await provider.createCheckoutSession({
+    cancelUrl: cancelUrl,
     customerEmail: input.customer.email,
     items,
     orderId,
-    successUrl: `${origin}/api/storefront/orders/checkout/stripe/success?orderId=${encodedOrderId}&session_id={CHECKOUT_SESSION_ID}`,
+    successUrl: successUrl,
   });
-
-  if (!checkoutSession.url) {
-    throw new OrderValidationError("Unable to create checkout session");
-  }
 
   await OrderModel.updateOne(
     { _id: orderId },
-    { $set: { "payment.checkoutSessionId": checkoutSession.id } },
+    { $set: { "payment.checkoutSessionId": checkoutSession.sessionId } },
   ).exec();
 
   return {
     orderId,
-    redirectUrl: checkoutSession.url,
+    redirectUrl: checkoutSession.redirectUrl,
   };
 }
 
-export async function confirmStripeCheckoutOrder(
+export async function confirmCheckoutOrder(
   orderId: string,
   sessionId: string,
 ): Promise<Order> {
@@ -608,7 +601,9 @@ export async function confirmStripeCheckoutOrder(
     throw new OrderValidationError("Invalid checkout session");
   }
 
-  const checkoutSession = await verifyCheckoutSession({
+  const provider = getPaymentProvider(existingOrder.payment!.provider);
+
+  const checkoutSession = await provider.verifyCheckoutSession({
     expectedTotal: existingOrder.total,
     orderId,
     sessionId,
@@ -620,15 +615,11 @@ export async function confirmStripeCheckoutOrder(
       {
         $set: {
           payment: {
-            amount: checkoutSession.amount_total
-              ? checkoutSession.amount_total / 100
-              : existingOrder.total,
-            checkoutSessionId: checkoutSession.id,
+            amount: checkoutSession.amount,
+            checkoutSessionId: checkoutSession.providerSessionId,
             currency: "aud",
-            paymentIntentId: getStripePaymentIntentId(
-              checkoutSession.payment_intent,
-            ),
-            provider: "stripe",
+            paymentIntentId: checkoutSession.paymentReference,
+            provider: existingOrder.payment!.provider,
             status: "paid",
           },
         },
@@ -639,11 +630,12 @@ export async function confirmStripeCheckoutOrder(
   const serializedOrder = await serializeOrder(updatedOrder);
 
   await sendOrderConfirmationEmail(serializedOrder);
+  await notificationService.recordOrderReceived(serializedOrder);
 
   return serializedOrder;
 }
 
-export async function markStripeCheckoutCancelled(orderId: string) {
+export async function markCheckoutCancelled(orderId: string) {
   if (!isValidObjectId(orderId)) {
     throw new OrderValidationError("Invalid checkout cancellation");
   }
@@ -727,6 +719,10 @@ export async function updateAdminOrderStatus(
   const serializedOrder = await serializeOrder(savedOrder as OrderRecord);
 
   await sendOrderStatusUpdateEmail(serializedOrder, previousStatus);
+
+  if (serializedOrder.status !== previousStatus) {
+    await notificationService.recordOrderStatusChanged(serializedOrder);
+  }
 
   return serializedOrder;
 }

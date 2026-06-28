@@ -7,6 +7,7 @@ export interface AdminOrderListItem {
   customerEmail: string;
   status: OrderStatus;
   total: number;
+  paymentStatus: string | null;
   itemCount: number;
   itemSummary: string;
   createdAt: string;
