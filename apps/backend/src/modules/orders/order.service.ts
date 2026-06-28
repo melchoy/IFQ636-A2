@@ -17,11 +17,11 @@ import {
   escapeHtml,
   renderRegisteredEmailTemplate,
 } from "../email/email.templates.js";
+import { notificationService } from "../notifications/index.js";
+import { getPaymentProvider } from "../payments/payment-provider.factory.js";
 import { ProductModel } from "../products/product.model.js";
 import { orderEmailRegistry } from "./emails/email.registry.js";
 import { OrderModel, type OrderDocument } from "./order.model.js";
-import { getPaymentProvider } from "../payments/payment-provider.factory.js";
-
 
 type OrderRecord = OrderDocument & {
   _id: { toString(): string };
@@ -626,6 +626,7 @@ export async function confirmCheckoutOrder(
   const serializedOrder = await serializeOrder(updatedOrder);
 
   await sendOrderConfirmationEmail(serializedOrder);
+  await notificationService.recordOrderReceived(serializedOrder);
 
   return serializedOrder;
 }
@@ -714,6 +715,10 @@ export async function updateAdminOrderStatus(
   const serializedOrder = await serializeOrder(savedOrder as OrderRecord);
 
   await sendOrderStatusUpdateEmail(serializedOrder, previousStatus);
+
+  if (serializedOrder.status !== previousStatus) {
+    await notificationService.recordOrderStatusChanged(serializedOrder);
+  }
 
   return serializedOrder;
 }
