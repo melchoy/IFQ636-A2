@@ -1,10 +1,6 @@
 import { expect } from "chai";
 
 import { OrderNumberService } from "../../../src/modules/orders/order-number.service.js";
-import {
-  DatePrefixedOrderNumberStrategy,
-  SequentialOrderNumberStrategy,
-} from "../../../src/modules/orders/order-number.strategy.js";
 
 class StubNumberSequenceService {
   private value = 0;
@@ -18,11 +14,19 @@ class StubNumberSequenceService {
   }
 }
 
+class StubOrderNumberSettings {
+  constructor(private readonly format: "sequential" | "date_prefixed") {}
+
+  async getOrderNumberFormat() {
+    return this.format;
+  }
+}
+
 describe("OrderNumberService", () => {
-  it("uses the sequential strategy without changing the service", async () => {
+  it("uses the configured sequential strategy", async () => {
     const service = new OrderNumberService(
       new StubNumberSequenceService(),
-      new SequentialOrderNumberStrategy("ORD", 6),
+      new StubOrderNumberSettings("sequential"),
       () => new Date("2026-06-20T00:00:00.000Z"),
     );
 
@@ -30,10 +34,10 @@ describe("OrderNumberService", () => {
     expect(await service.generateNext()).to.equal("ORD-000002");
   });
 
-  it("uses the date-prefixed strategy without changing the service", async () => {
+  it("uses the configured date-prefixed strategy", async () => {
     const service = new OrderNumberService(
       new StubNumberSequenceService(),
-      new DatePrefixedOrderNumberStrategy("ORD", 6),
+      new StubOrderNumberSettings("date_prefixed"),
       () => new Date("2026-06-20T00:00:00.000Z"),
     );
 
@@ -45,7 +49,7 @@ describe("OrderNumberService", () => {
     const sequence = new StubNumberSequenceService();
     const service = new OrderNumberService(
       sequence,
-      new SequentialOrderNumberStrategy("ORD", 6),
+      new StubOrderNumberSettings("sequential"),
       () => new Date("2026-06-20T00:00:00.000Z"),
     );
 
