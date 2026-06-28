@@ -1,5 +1,6 @@
 import * as doctorCommand from "../commands/doctor.mjs";
 import * as logsCommand from "../commands/logs.mjs";
+import * as notifyCommand from "../commands/notify.mjs";
 import * as psCommand from "../commands/ps.mjs";
 import * as restartCommand from "../commands/restart.mjs";
 import * as seedCommand from "../commands/seed.mjs";
@@ -12,6 +13,7 @@ const commandModules = [
   stopCommand,
   restartCommand,
   logsCommand,
+  notifyCommand,
   psCommand,
   seedCommand,
   statusCommand,
