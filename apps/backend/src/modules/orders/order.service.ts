@@ -120,6 +120,7 @@ async function serializeAdminOrderListItem(
     customerEmail: serializedOrder.customer.email,
     status: serializedOrder.status,
     total: serializedOrder.total,
+    paymentStatus: serializedOrder.payment?.status || null,
     itemCount: serializedOrder.items.reduce(
       (total, item) => total + item.quantity,
       0,
