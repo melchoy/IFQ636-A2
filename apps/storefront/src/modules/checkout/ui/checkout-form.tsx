@@ -19,6 +19,7 @@ type CheckoutFormState = {
   lastName: string;
   email: string;
   phone: string;
+  paymentMethod: "stripe" | "paypal";
   recipientName: string;
   addressLine1: string;
   addressLine2: string;
@@ -39,6 +40,7 @@ const initialCheckoutFormState: CheckoutFormState = {
   lastName: "",
   email: "",
   phone: "",
+  paymentMethod: "stripe",
   recipientName: "",
   addressLine1: "",
   addressLine2: "",
@@ -85,6 +87,7 @@ function buildCheckoutRequest(
       productId: item.productId,
       quantity: item.quantity,
     })),
+    paymentMethod: form.paymentMethod,
   };
 }
 
@@ -291,7 +294,39 @@ export function CheckoutForm() {
               </label>
             </div>
           </div>
-
+          <div className="mt-8 border-t pt-6">
+            <h2 className="text-lg font-semibold text-foreground">
+              Payment Method
+            </h2>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <label className="flex cursor-pointer items-center gap-3 rounded-md border border-input bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/40">
+                <input
+                  checked={form.paymentMethod === "stripe"}
+                  className="size-4 accent-foreground"
+                  name="paymentMethod"
+                  onChange={(event) =>
+                    updateField("paymentMethod", event.currentTarget.value)
+                  }
+                  type="radio"
+                  value="stripe"
+                />
+                Credit Card
+              </label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-md border border-input bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/40">
+                <input
+                  checked={form.paymentMethod === "paypal"}
+                  className="size-4 accent-foreground"
+                  name="paymentMethod"
+                  onChange={(event) =>
+                    updateField("paymentMethod", event.currentTarget.value)
+                  }
+                  type="radio"
+                  value="paypal"
+                />
+                PayPal
+              </label>
+            </div>
+          </div>
           <div className="mt-8 border-t pt-6">
             <h2 className="text-lg font-semibold text-foreground">
               Delivery details
