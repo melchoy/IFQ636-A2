@@ -16,6 +16,7 @@ import { OrderListPage } from "./routes/orders/list.page";
 import { PublicLayout } from "./routes/public.layout";
 import { RootLayout } from "./routes/root.layout";
 import { RouteError } from "./routes/route-error";
+import { SettingsPage } from "./routes/settings/settings.page";
 
 export const router = createBrowserRouter(
   [
@@ -70,6 +71,10 @@ export const router = createBrowserRouter(
                   path: "orders/:orderId",
                   loader: orderDetailLoader,
                   element: <OrderDetailPage />,
+                },
+                {
+                  path: "settings",
+                  element: <SettingsPage />,
                 },
               ],
             },
