@@ -43,6 +43,7 @@ export async function storefrontProductsRoutes(app: FastifyInstance) {
         name: product.name,
         description: product.description,
         imageUrl: product.imageUrl,
+        membershipDiscountEnabled: product.membershipDiscountEnabled,
         price: product.price,
       })),
       pagination: {
@@ -75,6 +76,7 @@ export async function storefrontProductsRoutes(app: FastifyInstance) {
         sku: product.sku,
         description: product.description,
         imageUrl: product.imageUrl,
+        membershipDiscountEnabled: product.membershipDiscountEnabled,
         price: product.price,
         stock: product.stock,
         status: product.status,

@@ -3,7 +3,7 @@ import type { Product } from "./product.entity.js";
 
 export type ProductListItem = Pick<
   Product,
-  "id" | "name" | "description" | "imageUrl" | "price"
+  "id" | "name" | "description" | "imageUrl" | "price" | "membershipDiscountEnabled"
 >;
 
 export interface ProductListResponse {
@@ -33,6 +33,7 @@ export type ProductDetail = Pick<
   | "description"
   | "imageUrl"
   | "price"
+  | "membershipDiscountEnabled"
   | "stock"
   | "status"
   | "visibility"

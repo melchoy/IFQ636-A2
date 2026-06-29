@@ -15,6 +15,7 @@ import {
 
 const DEFAULT_SETTINGS = {
   orderNumberFormat: "sequential",
+  membershipDiscountRate: 10,
   productBrowsingMode: "infinite",
   productBrowsingPageSize: 24,
 } as const;
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS = {
 function serializeSettings(record: SettingsRecordDocument): StoreSettingsSnapshot {
   return {
     createdAt: record.createdAt.toISOString(),
+    membershipDiscountRate: record.membershipDiscountRate,
     orderNumberFormat: record.orderNumberFormat,
     productBrowsingMode: record.productBrowsingMode,
     productBrowsingPageSize: record.productBrowsingPageSize,
@@ -51,6 +53,18 @@ function normalizeSettingsUpdate(input: StoreSettingsUpdate): StoreSettingsUpdat
     update.orderNumberFormat = input.orderNumberFormat;
   }
 
+  if (input.membershipDiscountRate !== undefined) {
+    if (
+      typeof input.membershipDiscountRate !== "number" ||
+      input.membershipDiscountRate < 0 ||
+      input.membershipDiscountRate > 100
+    ) {
+      throw new Error("Membership discount rate must be between 0 and 100");
+    }
+
+    update.membershipDiscountRate = input.membershipDiscountRate;
+  }
+
   if (input.productBrowsingMode !== undefined) {
     assertProductBrowsingMode(input.productBrowsingMode);
     update.productBrowsingMode = input.productBrowsingMode;
@@ -73,7 +87,10 @@ function normalizeSettingsUpdate(input: StoreSettingsUpdate): StoreSettingsUpdat
 
 async function ensureSettingsRecordDefaults(record: SettingsRecordDocument) {
   const update: Partial<
-    Pick<SettingsRecordDocument, "productBrowsingMode" | "productBrowsingPageSize">
+    Pick<
+      SettingsRecordDocument,
+      "membershipDiscountRate" | "productBrowsingMode" | "productBrowsingPageSize"
+    >
   > = {};
 
   if (!record.productBrowsingMode) {
@@ -82,6 +99,10 @@ async function ensureSettingsRecordDefaults(record: SettingsRecordDocument) {
 
   if (!Number.isInteger(record.productBrowsingPageSize)) {
     update.productBrowsingPageSize = DEFAULT_SETTINGS.productBrowsingPageSize;
+  }
+
+  if (typeof record.membershipDiscountRate !== "number") {
+    update.membershipDiscountRate = DEFAULT_SETTINGS.membershipDiscountRate;
   }
 
   if (Object.keys(update).length === 0) {
@@ -132,6 +153,11 @@ export class StoreSettings {
   async getOrderNumberFormat() {
     const settings = await this.getSettings();
     return settings.orderNumberFormat;
+  }
+
+  async getMembershipDiscountRate() {
+    const settings = await this.getSettings();
+    return settings.membershipDiscountRate;
   }
 
   async getProductBrowsingSettings() {

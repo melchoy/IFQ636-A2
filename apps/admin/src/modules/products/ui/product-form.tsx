@@ -58,6 +58,7 @@ export function ProductForm({
     sku: defaultValues.sku,
     description: defaultValues.description,
     imageUrl: defaultValues.imageUrl,
+    membershipDiscountEnabled: defaultValues.membershipDiscountEnabled ?? false,
     price: defaultValues.price,
     stock: defaultValues.stock,
     status: defaultValues.status,
