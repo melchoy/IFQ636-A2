@@ -6,6 +6,7 @@ export type ProductBrowsingMode = (typeof PRODUCT_BROWSING_MODES)[number];
 
 export interface StoreSettingsSnapshot {
   orderNumberFormat: OrderNumberFormat;
+  membershipDiscountRate: number;
   productBrowsingMode: ProductBrowsingMode;
   productBrowsingPageSize: number;
   createdAt: string;

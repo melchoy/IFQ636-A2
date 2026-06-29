@@ -12,6 +12,7 @@ export const STORE_SETTINGS_KEY = "store";
 export interface SettingsRecordDocument {
   key: typeof STORE_SETTINGS_KEY;
   orderNumberFormat: OrderNumberFormat;
+  membershipDiscountRate: number;
   productBrowsingMode: ProductBrowsingMode;
   productBrowsingPageSize: number;
   createdAt: Date;
@@ -32,6 +33,13 @@ const settingsRecordSchema = new Schema<SettingsRecordDocument>(
       enum: [...ORDER_NUMBER_FORMATS],
       required: true,
       type: String,
+    },
+    membershipDiscountRate: {
+      default: 10,
+      max: 100,
+      min: 0,
+      required: true,
+      type: Number,
     },
     productBrowsingMode: {
       default: "infinite",

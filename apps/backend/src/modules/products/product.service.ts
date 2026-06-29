@@ -49,6 +49,7 @@ function serializeProduct(product: ProductRecord): Product {
     description: product.description,
     imageUrl: product.imageUrl,
     price: product.price,
+    membershipDiscountEnabled: product.membershipDiscountEnabled ?? false,
     stock: product.stock,
     status: product.status,
     visibility: product.visibility,
